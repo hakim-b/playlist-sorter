@@ -1,62 +1,10 @@
 @import "tailwindcss";
 @import "@heroui/styles"; 
 
-/*
- * HeroUI Theme Customization
- * Add this to your global.css after importing @heroui/styles
- * Only includes variables users need to customize
- * @see https://heroui.com/docs/react/getting-started/theming
- */
-
 :root,
-.light,
-.default,
-[data-theme="light"],
-[data-theme="default"] {
-  /* Theme Colors (Light Mode) */
-  --accent: oklch(76.97% 0.2124 148.67);
-  --accent-foreground: oklch(15% 0.0300 148.67);
-  --background: oklch(97.02% 0.0020 148.67);
-  --border: oklch(90.00% 0.0020 148.67);
-  --danger: oklch(0.5509 0.2166 25.29);
-  --danger-foreground: oklch(98% 0.0200 25.29);
-  --default: oklch(94.00% 0.0020 148.67);
-  --default-foreground: oklch(21.03% 0.0059 148.67);
-  --field-background: oklch(100.00% 0.0010 148.67);
-  --field-border: transparent;
-  --field-foreground: oklch(21.03% 0.0020 148.67);
-  --field-placeholder: oklch(55.17% 0.0040 148.67);
-  --focus: oklch(76.97% 0.2124 148.67);
-  --foreground: oklch(21.03% 0.0020 148.67);
-  --muted: oklch(55.17% 0.0040 148.67);
-  --overlay: oklch(100.00% 0.0006 148.67);
-  --overlay-foreground: oklch(21.03% 0.0020 148.67);
-  --scrollbar: oklch(87.10% 0.0020 148.67);
-  --segment: oklch(100.00% 0.0020 148.67);
-  --segment-foreground: oklch(21.03% 0.0020 148.67);
-  --separator: oklch(92.00% 0.0020 148.67);
-  --success: oklch(0.6072 0.1647 149.02);
-  --success-foreground: oklch(98% 0.0165 149.02);
-  --surface: oklch(100.00% 0.0010 148.67);
-  --surface-foreground: oklch(21.03% 0.0020 148.67);
-  --surface-secondary: oklch(95.24% 0.0016 148.67);
-  --surface-secondary-foreground: oklch(21.03% 0.0020 148.67);
-  --surface-tertiary: oklch(93.73% 0.0016 148.67);
-  --surface-tertiary-foreground: oklch(21.03% 0.0020 148.67);
-  --warning: oklch(0.6972 0.1687 54.22);
-  --warning-foreground: oklch(15% 0.0500 54.22);
-
-  /* Border Radius */
-  --radius: 0.5rem;
-  --field-radius: 0.125rem;
-
-  /* Font Family */
-  /* Make sure to load Inter font in your app */
-  --font-sans: var(--font-inter);
-}
-
 .dark,
-[data-theme="dark"] {
+[data-theme="dark"],
+[data-theme="default"] {
   color-scheme: dark;
   /* Theme Colors (Dark Mode) */
   --accent: oklch(76.97% 0.2124 148.67);
