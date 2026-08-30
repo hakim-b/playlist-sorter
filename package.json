@@ -10,6 +10,7 @@
     "format": "biome format --write"
   },
   "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.7.2",
     "@heroui/react": "^3.2.4",
     "@heroui/styles": "^3.2.4",
     "@neondatabase/serverless": "^1.1.0",
