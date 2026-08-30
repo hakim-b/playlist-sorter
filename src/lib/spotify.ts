@@ -90,6 +90,7 @@ export async function getSpotifyPlaylists(
         id: string;
         name: string;
         images: Array<{ url: string }>;
+        items?: { total?: number };
         tracks?: { total?: number };
       }>;
       next: string | null;
@@ -100,7 +101,7 @@ export async function getSpotifyPlaylists(
         id: item.id,
         name: item.name,
         image: item.images[0]?.url ?? null,
-        trackCount: item.tracks?.total ?? 0,
+        trackCount: item.items?.total ?? item.tracks?.total ?? 0,
       })),
     );
 
