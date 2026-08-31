@@ -68,27 +68,33 @@ function PlaylistGrid() {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {playlists.map((playlist) => (
-        <Card key={playlist.id} className="gap-2 overflow-hidden">
-          {playlist.image ? (
-            <Image
-              alt={`${playlist.name} cover`}
-              className="pointer-events-none aspect-square w-full object-cover select-none"
-              height={640}
-              loading="lazy"
-              src={playlist.image}
-              width={640}
-            />
-          ) : (
-            <div className="aspect-square w-full bg-surface-secondary" />
-          )}
-          <Card.Header className="gap-1">
-            <Card.Title className="text-sm">{playlist.name}</Card.Title>
-            <Card.Description className="text-xs">
-              {playlist.trackCount}{" "}
-              {playlist.trackCount === 1 ? "song" : "songs"}
-            </Card.Description>
-          </Card.Header>
-        </Card>
+        <Link
+          key={playlist.id}
+          className="block rounded-3xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          href={`/playlist/${playlist.id}`}
+        >
+          <Card className="h-full gap-2 overflow-hidden transition hover:bg-surface-secondary">
+            {playlist.image ? (
+              <Image
+                alt={`${playlist.name} cover`}
+                className="pointer-events-none aspect-square w-full object-cover select-none"
+                height={640}
+                loading="lazy"
+                src={playlist.image}
+                width={640}
+              />
+            ) : (
+              <div className="aspect-square w-full bg-surface-secondary" />
+            )}
+            <Card.Header className="gap-1">
+              <Card.Title className="text-sm">{playlist.name}</Card.Title>
+              <Card.Description className="text-xs">
+                {playlist.trackCount}{" "}
+                {playlist.trackCount === 1 ? "song" : "songs"}
+              </Card.Description>
+            </Card.Header>
+          </Card>
+        </Link>
       ))}
     </div>
   );
