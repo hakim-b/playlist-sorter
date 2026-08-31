@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { env } from "~/env";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,11 +14,20 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(env.BETTER_AUTH_URL),
   title: {
     default: "Spotify Release Date sorter",
-    template: "%s | Spotify Release Date sorter"
+    template: "%s | Spotify Release Date sorter",
   },
-  description: "Sort playlist by release date. Built using Next.js, Better Auth, and Hero UI",
+  description:
+    "Sort playlist by release date. Built using Next.js, Better Auth, and Hero UI",
+  openGraph: {
+    type: "website",
+    siteName: "Spotify Release Date sorter",
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
