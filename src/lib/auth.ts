@@ -9,6 +9,15 @@ export const auth = betterAuth({
     provider: "pg",
     schema,
   }),
+  baseURL: {
+    allowedHosts: [
+      "127.0.0.1:3000",
+      "localhost:3000",
+      "playlist-sorter-theta.vercel.app",
+      "*.vercel.app",
+    ],
+    fallback: env.BETTER_AUTH_URL,
+  },
   socialProviders: {
     spotify: {
       clientId: env.SPOTIFY_CLIENT_ID,

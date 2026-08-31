@@ -1,5 +1,6 @@
 import { createAuthClient } from "better-auth/react";
+
 export const authClient = createAuthClient({
-  /** The base URL of the server (optional if you're using the same domain) */
-  baseURL: "http://127.0.0.1:3000",
+  // Always call this origin. A hardcoded localhost URL caused CORS on Vercel.
+  baseURL: typeof window === "undefined" ? undefined : window.location.origin,
 });
