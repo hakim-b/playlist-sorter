@@ -25,11 +25,13 @@ function SortForm({ playlistId }: { playlistId: string }) {
   const [isSorting, setIsSorting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [isSorted, setIsSorted] = useState(false);
 
   async function sortPlaylist() {
     setIsSorting(true);
     setMessage(null);
     setFailed(false);
+    setIsSorted(false);
 
     try {
       const res = await fetch(`/api/playlists/${playlistId}/sort`, {
@@ -46,6 +48,7 @@ function SortForm({ playlistId }: { playlistId: string }) {
       }
 
       setMessage("Playlist sorted on Spotify.");
+      setIsSorted(true);
     } catch {
       setFailed(true);
       setMessage("Failed to sort playlist.");
@@ -99,6 +102,16 @@ function SortForm({ playlistId }: { playlistId: string }) {
         <p className={`text-sm ${failed ? "text-danger" : "text-success"}`}>
           {message}
         </p>
+      ) : null}
+      {isSorted ? (
+        <Link
+          className="text-sm text-success underline underline-offset-4"
+          href={`https://open.spotify.com/playlist/${playlistId}`}
+          rel="noreferrer"
+          target="_blank"
+        >
+          Open playlist in Spotify
+        </Link>
       ) : null}
     </div>
   );
