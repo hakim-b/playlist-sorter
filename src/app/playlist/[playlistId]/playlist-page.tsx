@@ -228,6 +228,16 @@ export default function PlaylistPage() {
               {playlist.trackCount === 1 ? "song" : "songs"}
             </p>
           </div>
+          <Button
+            onPress={() =>
+              router.push(
+                `/playlist/${encodeURIComponent(playlist.id)}/bulk-transfer`,
+              )
+            }
+            variant="secondary"
+          >
+            Bulk transfer
+          </Button>
           <SortForm playlistId={playlist.id} />
         </div>
       </div>

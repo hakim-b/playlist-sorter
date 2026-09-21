@@ -10,6 +10,30 @@ export type SpotifyPlaylist = {
   trackCount: number;
 };
 
+export type SpotifyTransferTrack = {
+  position: number;
+  uri: string;
+  name: string;
+  artists: string[];
+  image: string | null;
+  durationMs: number | null;
+};
+
+export type SpotifyTransferItem = Pick<
+  SpotifyTransferTrack,
+  "position" | "uri"
+>;
+
+export type SpotifyTransferMode = "copy" | "move";
+
+export type SpotifyTransferSummary = {
+  mode: SpotifyTransferMode;
+  trackCount: number;
+  destinationCount: number;
+  sourceRemoved: boolean;
+  failedDestinations: Array<{ id: string; error: string }>;
+};
+
 export type PlaylistSortOrder = "oldest" | "newest";
 
 export type SpotifyResult<T> =
@@ -17,11 +41,19 @@ export type SpotifyResult<T> =
   | { ok: false; status: number; error: string };
 
 type SpotifyMedia = {
+  id?: string;
   type?: string;
   uri?: string;
+  name?: string;
   is_local?: boolean;
+  duration_ms?: number;
   release_date?: string;
-  album?: { release_date?: string };
+  artists?: Array<{ name?: string }>;
+  images?: Array<{ url?: string }>;
+  album?: {
+    release_date?: string;
+    images?: Array<{ url?: string }>;
+  };
 };
 
 type SpotifyPlaylistEntry = {
@@ -35,6 +67,7 @@ const YEAR_MONTH = /^\d{4}-\d{2}$/;
 const ADDABLE_URI = /^(spotify:track:|spotify:episode:)/;
 const SPOTIFY_ITEM_PAGE_SIZE = 50;
 const SPOTIFY_WRITE_BATCH_SIZE = 100;
+const SPOTIFY_TRACK_URI = /^spotify:track:[^:]+$/;
 
 type SpotifyTokenResponse = {
   access_token?: string;
@@ -200,6 +233,194 @@ async function getPlaylistEntries(
   }
 
   return { ok: true, data: entries };
+}
+
+function transferTrackFromEntry(
+  entry: SpotifyPlaylistEntry,
+  position: number,
+): SpotifyTransferTrack | null {
+  const media = mediaFromEntry(entry);
+  if (
+    !media ||
+    media.type !== "track" ||
+    media.is_local ||
+    !media.uri ||
+    !SPOTIFY_TRACK_URI.test(media.uri) ||
+    !media.name
+  ) {
+    return null;
+  }
+
+  return {
+    position,
+    uri: media.uri,
+    name: media.name,
+    artists: (media.artists ?? [])
+      .map((artist) => artist.name)
+      .filter((name): name is string => Boolean(name)),
+    image: media.album?.images?.[0]?.url ?? media.images?.[0]?.url ?? null,
+    durationMs: media.duration_ms ?? null,
+  };
+}
+
+export async function getSpotifyPlaylistItems(
+  userId: string,
+  playlistId: string,
+): Promise<SpotifyResult<SpotifyTransferTrack[]>> {
+  const token = await getSpotifyAccessToken(userId);
+  if (!token) {
+    return { ok: false, status: 401, error: "Missing Spotify access token" };
+  }
+
+  const entriesResult = await getPlaylistEntries(token, playlistId);
+  if (!entriesResult.ok) return entriesResult;
+
+  return {
+    ok: true,
+    data: entriesResult.data.flatMap((entry, position) => {
+      const track = transferTrackFromEntry(entry, position);
+      return track ? [track] : [];
+    }),
+  };
+}
+
+async function getPlaylistSnapshot(
+  token: string,
+  playlistId: string,
+): Promise<SpotifyResult<string | undefined>> {
+  const res = await spotifyRequest(
+    token,
+    `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}?fields=snapshot_id`,
+  );
+  if (!res.ok) {
+    return spotifyError(res.status, "Failed to fetch playlist snapshot");
+  }
+
+  const data = (await res.json()) as { snapshot_id?: string };
+  return { ok: true, data: data.snapshot_id };
+}
+
+async function addPlaylistItems(
+  token: string,
+  playlistId: string,
+  uris: string[],
+): Promise<SpotifyResult<null>> {
+  for (
+    let offset = 0;
+    offset < uris.length;
+    offset += SPOTIFY_WRITE_BATCH_SIZE
+  ) {
+    const res = await spotifyRequest(
+      token,
+      `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/items`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          uris: uris.slice(offset, offset + SPOTIFY_WRITE_BATCH_SIZE),
+        }),
+      },
+    );
+    if (!res.ok) {
+      return spotifyError(res.status, "Failed to add tracks to destination");
+    }
+  }
+
+  return { ok: true, data: null };
+}
+
+async function removePlaylistItems(
+  token: string,
+  playlistId: string,
+  items: SpotifyTransferItem[],
+  snapshotId: string | undefined,
+): Promise<SpotifyResult<null>> {
+  const grouped = new Map<string, number[]>();
+  for (const item of items) {
+    const positions = grouped.get(item.uri) ?? [];
+    positions.push(item.position);
+    grouped.set(item.uri, positions);
+  }
+
+  const groupedItems = [...grouped].map(([uri, positions]) => ({
+    uri,
+    positions,
+  }));
+
+  for (
+    let offset = 0;
+    offset < groupedItems.length;
+    offset += SPOTIFY_WRITE_BATCH_SIZE
+  ) {
+    const res = await spotifyRequest(
+      token,
+      `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/items`,
+      {
+        method: "DELETE",
+        body: JSON.stringify({
+          items: groupedItems.slice(offset, offset + SPOTIFY_WRITE_BATCH_SIZE),
+          ...(snapshotId ? { snapshot_id: snapshotId } : {}),
+        }),
+      },
+    );
+    if (!res.ok) {
+      return spotifyError(res.status, "Failed to remove tracks from source");
+    }
+  }
+
+  return { ok: true, data: null };
+}
+
+export async function transferSpotifyTracks(
+  userId: string,
+  sourcePlaylistId: string,
+  destinationPlaylistIds: string[],
+  items: SpotifyTransferItem[],
+  mode: SpotifyTransferMode,
+): Promise<SpotifyResult<SpotifyTransferSummary>> {
+  const token = await getSpotifyAccessToken(userId);
+  if (!token) {
+    return { ok: false, status: 401, error: "Missing Spotify access token" };
+  }
+
+  const snapshotResult = await getPlaylistSnapshot(token, sourcePlaylistId);
+  if (!snapshotResult.ok) return snapshotResult;
+
+  const failedDestinations: Array<{ id: string; error: string }> = [];
+  const uris = items.map((item) => item.uri);
+
+  for (const destinationId of destinationPlaylistIds) {
+    const result = await addPlaylistItems(token, destinationId, uris);
+    if (!result.ok) {
+      failedDestinations.push({ id: destinationId, error: result.error });
+    }
+  }
+
+  const canRemoveSource = mode === "move" && failedDestinations.length === 0;
+  let sourceRemoved = false;
+  if (canRemoveSource) {
+    const result = await removePlaylistItems(
+      token,
+      sourcePlaylistId,
+      items,
+      snapshotResult.data,
+    );
+    if (!result.ok) {
+      return result;
+    }
+    sourceRemoved = true;
+  }
+
+  return {
+    ok: true,
+    data: {
+      mode,
+      trackCount: items.length,
+      destinationCount:
+        destinationPlaylistIds.length - failedDestinations.length,
+      sourceRemoved,
+      failedDestinations,
+    },
+  };
 }
 
 async function replacePlaylistItems(
