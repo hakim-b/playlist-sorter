@@ -42,7 +42,7 @@ export const account = pgTable(
   "account",
   {
     id: text("id").primaryKey(),
-    issuer: text("issuer").notNull(),
+    issuer: text("issuer"),
     accountId: text("accountId").notNull(),
     providerId: text("providerId").notNull(),
     userId: text("userId")
