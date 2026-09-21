@@ -4,8 +4,9 @@ import { Card, Skeleton } from "@heroui/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import useSWR from "swr";
 import { authClient } from "~/lib/auth-client";
+import { fetcher } from "~/lib/fetcher";
 import type { SpotifyPlaylist } from "~/lib/spotify";
 
 const PLACEHOLDER_KEYS = Array.from(
@@ -14,31 +15,13 @@ const PLACEHOLDER_KEYS = Array.from(
 );
 
 function PlaylistGrid() {
-  const [playlists, setPlaylists] = useState<SpotifyPlaylist[] | null>(null);
-  const [failed, setFailed] = useState(false);
+  const { data, error } = useSWR<{ playlists: SpotifyPlaylist[] }>(
+    "/api/playlists",
+    fetcher,
+  );
+  const playlists = data?.playlists;
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const res = await fetch("/api/playlists");
-        if (!res.ok) throw new Error("Failed to load playlists");
-        const data = (await res.json()) as { playlists: SpotifyPlaylist[] };
-        if (!cancelled) setPlaylists(data.playlists);
-      } catch {
-        if (!cancelled) setFailed(true);
-      }
-    }
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (failed) {
+  if (error) {
     return <p className="text-sm text-muted">Failed to load your playlists.</p>;
   }
 

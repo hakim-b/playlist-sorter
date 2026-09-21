@@ -11,8 +11,11 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import useSWR, { useSWRConfig } from "swr";
+import useSWRMutation from "swr/mutation";
 import { authClient } from "~/lib/auth-client";
+import { fetcher } from "~/lib/fetcher";
 import type { PlaylistSortOrder, SpotifyPlaylist } from "~/lib/spotify";
 
 const SORT_OPTIONS: Array<{ id: PlaylistSortOrder; label: string }> = [
@@ -20,40 +23,51 @@ const SORT_OPTIONS: Array<{ id: PlaylistSortOrder; label: string }> = [
   { id: "newest", label: "Release date (newest first)" },
 ];
 
+type SortResponse = { ok: true; trackCount: number };
+
+async function sortFetcher(
+  url: string,
+  { arg }: { arg: { order: PlaylistSortOrder } },
+): Promise<SortResponse> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(arg),
+  });
+  const data = (await response.json()) as SortResponse & { error?: string };
+
+  if (!response.ok) {
+    throw new Error(data.error ?? "Failed to sort playlist.");
+  }
+
+  return data;
+}
+
 function SortForm({ playlistId }: { playlistId: string }) {
   const [order, setOrder] = useState<PlaylistSortOrder>("oldest");
-  const [isSorting, setIsSorting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [isSorted, setIsSorted] = useState(false);
+  const { mutate } = useSWRConfig();
+  const sortKey = `/api/playlists/${encodeURIComponent(playlistId)}/sort`;
+  const playlistKey = `/api/playlists/${encodeURIComponent(playlistId)}`;
+  const { trigger, isMutating } = useSWRMutation(sortKey, sortFetcher);
 
   async function sortPlaylist() {
-    setIsSorting(true);
     setMessage(null);
     setFailed(false);
     setIsSorted(false);
 
     try {
-      const res = await fetch(`/api/playlists/${playlistId}/sort`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order }),
-      });
-      const data = (await res.json()) as { error?: string };
-
-      if (!res.ok) {
-        setFailed(true);
-        setMessage(data.error ?? "Failed to sort playlist.");
-        return;
-      }
-
+      await trigger({ order });
+      await mutate(playlistKey);
       setMessage("Playlist sorted on Spotify.");
       setIsSorted(true);
-    } catch {
+    } catch (error) {
       setFailed(true);
-      setMessage("Failed to sort playlist.");
-    } finally {
-      setIsSorting(false);
+      setMessage(
+        error instanceof Error ? error.message : "Failed to sort playlist.",
+      );
     }
   }
 
@@ -89,7 +103,7 @@ function SortForm({ playlistId }: { playlistId: string }) {
             </ListBox>
           </Select.Popover>
         </Select>
-        <Button isPending={isSorting} onPress={() => void sortPlaylist()}>
+        <Button isPending={isMutating} onPress={() => void sortPlaylist()}>
           {({ isPending }) => (
             <>
               {isPending ? <Spinner color="current" size="sm" /> : null}
@@ -122,41 +136,16 @@ export default function PlaylistPage() {
   const playlistId = params.playlistId;
   const { data: session, isPending } = authClient.useSession();
   const router = useRouter();
-  const [playlist, setPlaylist] = useState<SpotifyPlaylist | null>(null);
-  const [failed, setFailed] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!session || !playlistId) return;
-
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const res = await fetch(`/api/playlists/${playlistId}`);
-        const data = (await res.json()) as {
-          playlist?: SpotifyPlaylist;
-          error?: string;
-        };
-        if (!res.ok) {
-          if (!cancelled) {
-            setFailed(data.error ?? "Failed to load playlist.");
-          }
-          return;
-        }
-        if (!cancelled && data.playlist) {
-          setPlaylist(data.playlist);
-        }
-      } catch {
-        if (!cancelled) setFailed("Failed to load playlist.");
-      }
-    }
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [playlistId, session]);
+  const playlistKey =
+    session && playlistId
+      ? `/api/playlists/${encodeURIComponent(playlistId)}`
+      : null;
+  const { data, error } = useSWR<{ playlist: SpotifyPlaylist }>(
+    playlistKey,
+    fetcher,
+  );
+  const playlist = data?.playlist;
+  const failed = error instanceof Error ? error.message : null;
 
   if (isPending) {
     return <p className="p-4">Loading...</p>;
