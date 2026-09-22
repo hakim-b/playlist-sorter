@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { authClient } from "~/lib/auth-client";
-import { fetcher } from "~/lib/fetcher";
+import { ApiError, fetcher } from "~/lib/fetcher";
 import type { SpotifyPlaylist } from "~/lib/spotify";
 
 const PLACEHOLDER_KEYS = Array.from(
@@ -18,11 +18,22 @@ function PlaylistGrid() {
   const { data, error } = useSWR<{ playlists: SpotifyPlaylist[] }>(
     "/api/playlists",
     fetcher,
+    {
+      shouldRetryOnError: false,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    },
   );
   const playlists = data?.playlists;
 
   if (error) {
-    return <p className="text-sm text-muted">Failed to load your playlists.</p>;
+    return (
+      <p role="alert" className="text-sm text-muted">
+        {error instanceof ApiError
+          ? error.message
+          : "Failed to load your playlists. Please try again later."}
+      </p>
+    );
   }
 
   if (!playlists) {

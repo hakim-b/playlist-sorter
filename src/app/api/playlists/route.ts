@@ -9,14 +9,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const playlists = await getSpotifyPlaylists(session.user.id);
+  const result = await getSpotifyPlaylists(session.user.id);
 
-  if (!playlists) {
+  if (!result.ok) {
     return NextResponse.json(
-      { error: "Failed to fetch playlists from Spotify" },
-      { status: 502 },
+      { error: result.error },
+      {
+        status: result.status,
+        headers: result.retryAfter
+          ? { "Retry-After": result.retryAfter }
+          : undefined,
+      },
     );
   }
 
-  return NextResponse.json({ playlists });
+  return NextResponse.json({ playlists: result.data });
 }

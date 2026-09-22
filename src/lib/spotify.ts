@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "~/db";
 import { account } from "~/db/schema";
 import { env } from "~/env";
+import { spotifyPlaylistError } from "~/lib/spotify-playlist-error";
 
 export type SpotifyPlaylist = {
   id: string;
@@ -38,7 +39,7 @@ export type PlaylistSortOrder = "oldest" | "newest";
 
 export type SpotifyResult<T> =
   | { ok: true; data: T }
-  | { ok: false; status: number; error: string };
+  | { ok: false; status: number; error: string; retryAfter?: string };
 
 type SpotifyMedia = {
   id?: string;
@@ -519,9 +520,15 @@ async function reorderPlaylistItems(
 
 export async function getSpotifyPlaylists(
   userId: string,
-): Promise<SpotifyPlaylist[] | null> {
+): Promise<SpotifyResult<SpotifyPlaylist[]>> {
   const token = await getSpotifyAccessToken(userId);
-  if (!token) return null;
+  if (!token) {
+    return {
+      ok: false,
+      status: 401,
+      error: "Missing Spotify access token. Sign out and sign in again.",
+    };
+  }
 
   const playlists: SpotifyPlaylist[] = [];
   let nextUrl: string | null =
@@ -532,7 +539,7 @@ export async function getSpotifyPlaylists(
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) return spotifyPlaylistError(res);
 
     const data = (await res.json()) as {
       items: Array<{
@@ -557,7 +564,7 @@ export async function getSpotifyPlaylists(
     nextUrl = data.next;
   }
 
-  return playlists;
+  return { ok: true, data: playlists };
 }
 
 export async function getSpotifyPlaylist(
