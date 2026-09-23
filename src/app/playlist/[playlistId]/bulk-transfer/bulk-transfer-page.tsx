@@ -94,12 +94,12 @@ function TransferModeControl({
   onChange: (mode: SpotifyTransferMode) => void;
 }) {
   return (
-    <fieldset className="inline-flex rounded-xl bg-surface-secondary p-1">
+    <fieldset className="flex w-full rounded-xl bg-surface-secondary p-1">
       <legend className="sr-only">Transfer mode</legend>
       {(["copy", "move"] as const).map((option) => (
         <button
           aria-pressed={mode === option}
-          className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+          className={`flex-1 rounded-lg px-4 py-2 text-center text-sm font-semibold transition ${
             mode === option
               ? "bg-accent text-accent-foreground"
               : "text-muted hover:text-foreground"
